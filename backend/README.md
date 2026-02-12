@@ -43,6 +43,7 @@ ENVIRONMENT=production  # Set to 'production' for production deployment
 4. Run the application:
    ```bash
    uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+   python -m uvicorn main:app --reload --host 0.0.0.0 --port 8001 
    ```
 
 ## Production Deployment (Hugging Face Spaces)

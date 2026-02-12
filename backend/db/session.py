@@ -3,13 +3,14 @@ from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 from core.config import settings
-import os
 
 # Create engines based on database type
 database_url = settings.DATABASE_URL
 
 # Determine if we're using PostgreSQL or SQLite
-is_postgres = database_url.startswith('postgresql://') or database_url.startswith('postgres://')
+is_postgres = (database_url.startswith('postgresql://') or
+               database_url.startswith('postgres://') or
+               database_url.startswith('postgresql+'))
 
 if is_postgres:
     # For PostgreSQL, use async driver
@@ -29,8 +30,10 @@ if is_postgres:
         pool_recycle=300,
     )
 
+    # For sync operations, use psycopg2 driver explicitly
+    sync_url = database_url.replace('+asyncpg', '+psycopg2')
     sync_engine = create_engine(
-        database_url.replace('+asyncpg', ''),  # Remove asyncpg driver for sync operations
+        sync_url,
         echo=False,
         pool_size=5,
         max_overflow=10,
@@ -82,34 +85,8 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 def get_sync_session():
-    """Dependency to provide sync database session"""
+    """Dependency to provide sync database session (for FastAPI Depends)"""
     with SyncSessionLocal() as session:
         yield session
 
-# Create async session maker
-AsyncSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=async_engine,
-    class_=AsyncSession
-)
 
-# Create sync session maker
-SyncSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=sync_engine,
-    expire_on_commit=False
-)
-
-
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency to provide async database session"""
-    async with AsyncSessionLocal() as session:
-        yield session
-
-
-def get_sync_session():
-    """Dependency to provide sync database session"""
-    with SyncSessionLocal() as session:
-        yield session

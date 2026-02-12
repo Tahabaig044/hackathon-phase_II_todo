@@ -91,12 +91,11 @@ async def register(
 
     # Create new user
     user = User(
-        id=uuid.uuid4(),
-        name=register_request.name,
-        email=register_request.email,
-        hashed_password=hashed_password,
-        created_at=datetime.utcnow()
-    )
+    id=uuid.uuid4(),
+    name=register_request.name,
+    email=register_request.email,
+    hashed_password=hashed_password
+)
 
     session.add(user)
     await session.commit()

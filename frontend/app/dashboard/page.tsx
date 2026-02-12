@@ -4,12 +4,14 @@ import { HeaderNav } from '@/app/dashboard/components/ui/header-nav';
 import { TaskList } from '@/app/dashboard/components/ui/task-list';
 import { Button } from '@/app/dashboard/components/ui/button';
 import { Input } from '@/app/dashboard/components/ui/input';
-import { PlusIcon, SearchIcon, CheckCircleIcon, ClockIcon, AlertTriangleIcon } from 'lucide-react';
+import { PlusIcon, SearchIcon, CheckCircleIcon, ClockIcon, AlertTriangleIcon, MessageCircleIcon } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { Task } from '@/types/task';
 import { TaskModal } from '@/app/dashboard/components/task-modal';
 import LogoutDialog from '@/app/dashboard/components/logout-dialog';
 import { apiClient } from '@/lib/api';
+import { onTaskChange } from '@/lib/taskSync';
 
 import { ConfirmationDialog } from '@/app/dashboard/components/ui/confirmation-dialog';
 import ProtectedRoute from '@/app/dashboard/components/protected-route';
@@ -27,30 +29,29 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const fetchTasks = async () => {
+    // Only proceed if auth token exists
+    const token = localStorage.getItem('auth-token');
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiClient.getTasks();
+      setTasks(response || []);
+    } catch (error: any) {
+      console.error('Failed to fetch tasks:', error);
+      setError(error.message || 'Failed to fetch tasks. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Load tasks from API on component mount
   useEffect(() => {
-    const fetchTasks = async () => {
-      // Only proceed if auth token exists
-      const token = localStorage.getItem('auth-token');
-      if (!token) {
-        // No token found, skip API call
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError(null); // Clear previous errors
-        const response = await apiClient.getTasks();
-        setTasks(response || []); // Updated: API now returns array directly
-      } catch (error: any) {
-        console.error('Failed to fetch tasks:', error);
-        setError(error.message || 'Failed to fetch tasks. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchTasks();
 
     // Listen for add task event from empty state
@@ -70,6 +71,24 @@ export default function DashboardPage() {
       window.removeEventListener('add-task', handleAddTask);
       window.removeEventListener('keydown', handleKeyDown);
     };
+  }, []);
+
+  // Live sync: auto-refresh when chatbot modifies tasks
+  useEffect(() => {
+    const cleanup = onTaskChange(() => {
+      fetchTasks();
+    });
+    return cleanup;
+  }, []);
+
+  // Polling: refresh tasks every 3 seconds for cross-device sync
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchTasks();
+      }
+    }, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   // Filter and search tasks
@@ -202,17 +221,19 @@ export default function DashboardPage() {
         />
 
         <main className="container py-8">
+
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
             <div>
-              <h1 className="text-3xl font-bold text-text-primary mb-2">Dashboard</h1>
-              <p className="text-text-secondary">Manage your tasks and stay productive</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Dashboard</h1>
+              <p className="text-gray-500 dark:text-gray-400">Manage your tasks and stay productive</p>
             </div>
 
-            <Button onClick={() => setIsModalOpen(true)} size="lg" className="shadow-lg">
-              <PlusIcon className="h-5 w-5 mr-2" />
-              Add New Task
-            </Button>
+              <Button onClick={() => setIsModalOpen(true)}
+                size="lg" className="btn-primary w-full lg:w-auto shadow-md hover:shadow-xl transition-all duration-200 flex items-center justify-center">
+              <PlusIcon className="h-5 w-5 mr-2" />Add New Task</Button>
+
           </div>
+
 
           {/* Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -288,9 +309,15 @@ export default function DashboardPage() {
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-border rounded-lg flex items-center gap-3">
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3">
               <AlertTriangleIcon className="h-5 w-5 text-red-500 flex-shrink-0" />
-              <span className="text-red-700">{error}</span>
+              <span className="text-red-700 dark:text-red-300 flex-1">{error}</span>
+              <button
+                onClick={() => { setError(null); fetchTasks(); }}
+                className="px-3 py-1 text-sm bg-red-100 dark:bg-red-800 hover:bg-red-200 dark:hover:bg-red-700 text-red-700 dark:text-red-200 rounded-md transition-colors"
+              >
+                Retry
+              </button>
             </div>
           )}
 
@@ -339,21 +366,17 @@ export default function DashboardPage() {
         />
 
         {/* Footer */}
-        <footer className="mt-16 py-8 border-t border-border bg-surface">
-          <div className="container text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <div className="bg-primary-500 rounded-lg p-1">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-              </div>
-              <span className="text-sm font-medium text-text-secondary">TaskFlow Pro</span>
-            </div>
-            <p className="text-xs text-text-secondary">
-              Press <kbd className="px-1 py-0.5 bg-surface rounded text-xs">Ctrl+N</kbd> to quickly add a new task
-            </p>
-          </div>
-        </footer>
+        {/* Floating AI Chat Button */}
+        {/* <Link
+          href="/chat"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5
+                     bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700
+                     text-white rounded-full shadow-lg hover:shadow-xl
+                     transition-all duration-300 hover:scale-105 group"
+        >
+          <MessageCircleIcon className="h-5 w-5 group-hover:animate-bounce" />
+          <span className="font-medium text-sm">AI Assistant</span>
+        </Link> */}
       </div>
     </ProtectedRoute>
   );

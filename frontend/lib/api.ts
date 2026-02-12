@@ -13,7 +13,7 @@ class ApiClient {
 
   constructor() {
     // Use absolute backend URL from environment variable
-    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
   }
 
   private async request<T>(endpoint: string, options: ApiRequestOptions = {}): Promise<T> {

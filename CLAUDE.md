@@ -208,3 +208,10 @@ Wait for consent; never auto-create ADRs. Group related decisions (stacks, authe
 
 ## Code Standards
 See `.specify/memory/constitution.md` for code quality, testing, performance, security, and architecture principles.
+
+## Active Technologies
+- Python 3.11, TypeScript/JavaScript (Node.js 18+) + FastAPI, OpenRouter API, MCP Protocol, existing Phase II backend services (001-ai-chatbot)
+- PostgreSQL (Neon), Conversation and Message entities (001-ai-chatbot)
+
+## Recent Changes
+- 001-ai-chatbot: Added Python 3.11, TypeScript/JavaScript (Node.js 18+) + FastAPI, OpenRouter API, MCP Protocol, existing Phase II backend services
